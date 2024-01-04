@@ -1,72 +1,57 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 )
 
-func handleConnection(conn net.Conn) {
-	defer conn.Close() // close connection before exit
+func main() {
+	conn, err := net.Dial("tcp", "localhost:5000")
+	if err != nil {
+		fmt.Println("Error connecting:", err)
+		return
+	}
+	defer conn.Close()
 
-	// buffer for reading
-	buffer := make([]byte, 1024)
+	fmt.Println("Connected to server")
+
+	reader := bufio.NewReader(os.Stdin)
 	for {
-		// Read data from the client
-		n, err := conn.Read(buffer) // Read() blocks until it reads some data from the network and n is the number of bytes read
+		// Read username
+		fmt.Print("Enter username: ")
+		username, _ := reader.ReadString('\n')
+		username = strings.TrimSpace(username)
+
+		// Read password
+		fmt.Print("Enter password: ")
+		password, _ := reader.ReadString('\n')
+		password = strings.TrimSpace(password)
+
+		// Check if the user wants to quit
+		if strings.ToLower(username) == "quit" || strings.ToLower(password) == "quit" {
+			fmt.Println("Quitting...")
+			return
+		}
+
+		// Construct the message with username and password
+		message := fmt.Sprintf("Username: %s\nPassword: %s\n", username, password)
+
+		// Send the message to the server
+		conn.Write([]byte(message))
+
+		// Print the number of bytes sent
+		fmt.Printf("Sent %d bytes\n", len(message))
+
+		// Receive and print the server's response
+		buffer := make([]byte, 1024)
+		n, err := conn.Read(buffer)
 		if err != nil {
 			fmt.Println("Error reading:", err)
 			return
 		}
-		// Print the number of bytes read
-		fmt.Printf("Received %d bytes\n", n)
-
-		// Convert received data to string
-		receivedData := string(buffer[:n])
-
-		// Split received data into username and password
-		credentials := strings.Fields(receivedData)
-		if len(credentials) != 2 {
-			fmt.Println("Invalid input format. Please provide username and password.")
-			continue
-		}
-
-		username := credentials[0]
-		password := credentials[1]
-
-		// Validate username and password (you can replace this with your own validation logic)
-		if username == "your_username" && password == "your_password" {
-			// Send a response back to the client
-			response := "Hello\n"
-			conn.Write([]byte(response))
-		} else {
-			// Send an error response back to the client
-			response := "Invalid username or password\n"
-			conn.Write([]byte(response))
-		}
-	}
-}
-
-func main() {
-	listener, err := net.Listen("tcp", ":5000")
-	if err != nil {
-		fmt.Println("Error listening:", err)
-		return
-	}
-	defer listener.Close()
-
-	fmt.Println("Server is listening on port 5000")
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println("Error accepting connection:", err)
-			continue
-		}
-
-		fmt.Println("New connection established")
-
-		// handle the connection in a new goroutine
-		go handleConnection(conn)
+		fmt.Printf("Server response: %s", buffer[:n])
 	}
 }

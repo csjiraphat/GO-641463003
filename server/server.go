@@ -7,39 +7,41 @@ import (
 )
 
 func handleConnection(conn net.Conn) {
-	defer conn.Close() // close connection before exit
-	//buffer for reading
+	defer conn.Close()
+
+	// Buffer for reading
 	buffer := make([]byte, 1024)
 
 	// Read data from the client
-	n, err := conn.Read(buffer) // Read() blocks until it reads some data from the network and n is the number of bytes read
+	n, err := conn.Read(buffer)
 	if err != nil {
 		fmt.Println("Error reading:", err)
 		return
 	}
 
-	// Convert received data to string
-	receivedData := string(buffer[:n])
-
-	// Split received data into username and password
-	credentials := strings.Fields(receivedData)
+	// Convert received data to string and split into username and password
+	data := strings.TrimSpace(string(buffer[:n]))
+	credentials := strings.Split(data, "\n")
 	if len(credentials) != 2 {
-		fmt.Println("Invalid input format. Please provide username and password.")
+		fmt.Println("Invalid credentials format")
+		conn.Write([]byte("Invalid credentials\n"))
 		return
 	}
 
-	username := credentials[0]
-	password := credentials[1]
+	username := strings.TrimSpace(strings.Split(credentials[0], ":")[1])
+	password := strings.TrimSpace(strings.Split(credentials[1], ":")[1])
 
-	// Validate username and password (you can replace this with your own validation logic)
-	if username == "your_username" && password == "your_password" {
+	// Check username and password
+	if username == "std1" && password == "p@ssw0rd" {
 		// Send a response back to the client
 		response := "Hello\n"
 		conn.Write([]byte(response))
+		fmt.Println("Authentication successful for user:", username)
 	} else {
-		// Send an error response back to the client
-		response := "Invalid username or password\n"
+		// Send a response back to the client
+		response := "Invalid credentials\n"
 		conn.Write([]byte(response))
+		fmt.Println("Invalid credentials for user:", username)
 	}
 }
 
@@ -60,9 +62,9 @@ func main() {
 			continue
 		}
 
-		fmt.Println("New connection established")
+		fmt.Println("New connection")
 
-		//handle the connection in a new goroutine
+		// Handle the connection in a new goroutine
 		go handleConnection(conn)
 	}
 }
